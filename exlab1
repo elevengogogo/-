@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#define BUFFER_SIZE 1024
+
+char *http_process(char *request) {
+    static char response[BUFFER_SIZE];
+    *response = '\0';
+
+    // 解析HTTP请求，提取请求的URI
+    char uri[BUFFER_SIZE];
+    if (sscanf(request, "GET %s HTTP/1.1", uri) != 1) {
+        return NULL; // 请求不合法
+    }
+
+    // 构造文件路径
+    char path[BUFFER_SIZE];
+    sprintf(path, "htdocs%s", uri);
+
+    // 打开文件
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        // 文件打开失败，返回404响应
+        strcat(response, "HTTP/1.1 404 Not Found\r\n");
+        strcat(response, "Server: MyHTTPServer\r\n");
+        strcat(response, "Content-Type: text/html\r\n");
+        strcat(response, "\r\n"); // 空行，表示响应头结束
+        strcat(response, "<html><body><h1>404 Not Found</h1></body></html>");
+        return response;
+    }
+
+    // 读取文件内容并构造HTTP响应
+    strcat(response, "HTTP/1.1 200 OK\r\n");
+    strcat(response, "Server: MyHTTPServer\r\n");
+    strcat(response, "Content-Type: text/html\r\n");
+    strcat(response, "\r\n"); // 空行，表示响应头结束
+
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_read;
+    while ((bytes_read = read(fd, buffer, BUFFER_SIZE)) > 0) {
+        strncat(response, buffer, bytes_read);
+    }
+
+    close(fd);
+
+    return response;
+}
